@@ -1,90 +1,55 @@
-# Gemini WhatsApp Friend
+# REMOTE — News-to-preview automation
 
-A Node.js WhatsApp companion bot that uses Google Gemini to decide whether a group message deserves a short, casual reply. It is designed to run as a persistent Railway worker, so the PC does not need to stay on.
+A preview-first build of REMOTE. It discovers unusual US-oriented news candidates through Google News RSS searches, lets Gemini rank and rewrite source-backed material, searches Openverse for wide photographs under commercially usable licences, and renders a 1080×1080 PNG in the fixed REMOTE template.
 
-## Important behaviour
+## Features
 
-- The bot uses an unofficial WhatsApp Web library (Baileys), not Meta's official WhatsApp Business API. WhatsApp can log out or restrict unofficial clients; use this at your own risk.
-- Only group IDs in TARGET_GROUP_IDS are processed. If that list is empty, the bot only logs group names/IDs and sends no group message content to Gemini.
-- DRY_RUN defaults to true. The AI's suggested reply is logged but not sent.
-- In an approved group, a local filter selects likely conversational messages before Gemini sees them. Gemini then decides whether to reply.
-- Recent text context is held in memory only; it is not written to disk. The WhatsApp authentication session is stored under AUTH_DIR.
-- Let the group members know that an AI assistant may process selected messages. Avoid using the bot in groups where members would not expect this.
+- Netlify static site with serverless endpoints for RSS news discovery, Openverse search, article text extraction, and same-origin photo loading for canvas export.
+- Gemini API key field, connection test, live model list, automatic budget-oriented Flash/Flash-Lite choice, and manual model selection.
+- Manual preview generation, browser-tab Auto timer (1–12 hours), step progress, event logs, source links, photo attribution/licence links, PNG download and caption copy.
+- Template text fit checks and one AI rewrite attempt if the headline/paragraph exceeds the target.
+- No Facebook credentials or publishing code in this version.
 
-## 1. Create the Gemini API key
+## Run locally
 
-Create a key in Google AI Studio: https://aistudio.google.com/api-keys
+Requires Node.js 22+. From the repository root:
 
-Keep the key private. Do not commit it to GitHub, do not paste it into chat, and do not add it to this repository. Add it only in Railway Variables as GEMINI_API_KEY.
+```sh
+npm test
+npm run build
+npx netlify-cli dev
+```
 
-## 2. Deploy from GitHub to Railway
+Open the local URL printed by Netlify Dev. Do not open `index.html` as a `file://` URL, because Netlify functions will not exist there.
 
-1. Sign in to https://railway.com using the GitHub account that owns this repository.
-2. Create a new project and choose Deploy from GitHub Repo.
-3. Select sarada2000sd/Whatsapp_bot.
-4. Open the service settings and add a persistent volume mounted at /app/data.
-5. Add the variables listed below. Railway reads railway.toml and starts the worker with npm start.
-6. Deploy the service and open its logs.
+## Deploy to Netlify
 
-Required/important Railway Variables:
+1. In Netlify, choose **Add new site → Import an existing project**.
+2. Connect GitHub and choose `sarada2000sd/Whatsapp_bot`.
+3. Choose branch `remote-news`.
+4. Build command: `npm run build`; publish directory: `dist`. Functions directory is configured as `netlify/functions` in `netlify.toml`.
+5. Deploy the site, then test **Check news feeds**, **Refresh models**, **Test Gemini**, and **Generate preview**.
 
-- GEMINI_API_KEY — your Google AI Studio API key.
-- GEMINI_MODEL — defaults to gemini-3.8-flash.
-- PAIRING_NUMBER — your WhatsApp number with country code, digits only. For Sri Lanka use the 94 country code and omit the leading 0, plus sign, spaces, and dashes.
-- AUTH_DIR — set to /app/data/auth.
-- TARGET_GROUP_IDS — leave empty during initial discovery.
-- DRY_RUN — keep true during setup.
-- REPLY_MODE — smart (default) or mention.
-- BOT_NAME — the name you want the persona prompt to use.
+A deployed site is not created automatically by a GitHub commit. The Netlify account owner must connect/import the branch once.
 
-Optional limits can be adjusted with MIN_CANDIDATE_LENGTH, CONTEXT_MESSAGES, REPLY_COOLDOWN_SECONDS, MAX_AI_CALLS_PER_GROUP_PER_HOUR, MAX_REPLIES_PER_GROUP_PER_HOUR, and MAX_REPLY_LENGTH. See .env.example for defaults.
+## Gemini key and model choice
 
-## 3. Link WhatsApp using a pairing code
+Paste a Gemini API key in the website Settings panel. The browser calls Google's Gemini API directly and only saves the key in the current tab session by default. Checking **Remember key in this browser** stores it in browser local storage. Clearing site data or using a different browser removes the local saved copy. A key entered into browser storage is not safe for a public shared computer or a public multi-user product. Use a restricted key and review your Google AI Studio quota/billing settings.
 
-1. Make sure /app/data is a persistent Railway volume before linking.
-2. Set PAIRING_NUMBER and AUTH_DIR, then deploy/restart.
-3. In Railway logs, find [PAIRING_CODE]. This is a one-time code; do not share it.
-4. On your phone, open WhatsApp > Linked devices > Link a device > Link with phone number instead.
-5. Enter the code shown in Railway logs.
-6. Wait for the log message saying WhatsApp connected.
+The model selector fetches the models currently available to that key, filters to models supporting `generateContent`, and excludes image/audio/embedding/special-purpose models. AUTO prefers an available Flash-Lite identifier and then a stable Flash model. The Models API does not identify which models will be free on a user's account, and availability, quotas and billing can change. Confirm usage in Google AI Studio.
 
-If pairing cannot start, check that the number contains digits only with the country code, and that the volume is mounted. Do not delete the volume or auth folder after linking unless you intend to link again.
+## Sources and photo licensing
 
-## 4. Discover and allow the target group
+- News discovery currently uses localized Google News RSS search feeds; this is feed discovery, not proof of a claim.
+- Article text extraction is best-effort; paywalls, bot protection, publisher HTML changes and redirect restrictions may cause snippet-only retrieval.
+- Image search calls Openverse with commercial-use, wide, large-photo filters and a second whitelist for `CC0`, public-domain, `CC BY`, and `CC BY`. CC BY-SA is excluded by default to avoid ShareAlike obligations in branded graphics. Always open the original landing/licence links before using a photo. Openverse metadata is not a legal guarantee.
+- The system refuses to render a photo if it cannot find an eligible result or proxy/render the image.
+- Gemini outputs are drafts, not independent fact-checking. Read the source links; low-confidence or snippet-only results require extra care.
 
-1. With the linked account active, send a new ordinary message in the group you want to use.
-2. In Railway logs, look for [GROUP_DISCOVERED]. It includes the group subject and its JID, ending with @g.us. The bot does not send any content from that group to Gemini while it is not allowlisted.
-3. Copy the JID into Railway Variable TARGET_GROUP_IDS. If you want more than one group, separate JIDs with commas.
-4. Redeploy the service so the new allowlist is loaded.
+## Automation boundaries
 
-## 5. Test before enabling replies
+The browser Auto timer generates a first preview immediately and repeats after the selected interval while the page stays open. Closing the tab/browser stops it. This is intentional in this build: secure unattended scheduling needs server-side credential storage and scheduled functions, which are not wired to the browser-only API key field yet. Facebook publishing is deferred completely. No post is sent to Facebook.
 
-1. Keep DRY_RUN=true.
-2. Send messages in the approved group that look like questions or substantial conversation.
-3. Check Railway logs for [AI_SKIP] and [DRY_RUN_REPLY]. In dry-run mode, no WhatsApp replies are sent.
-4. If the suggestions are not suitable, adjust BOT_NAME, REPLY_MODE, MIN_CANDIDATE_LENGTH, and the personality instructions in src/personality.js.
-5. When you are satisfied, have informed the group, and accept the account risk, set DRY_RUN=false and redeploy.
+## Tests
 
-## Data and cost controls
-
-- An empty TARGET_GROUP_IDS is a safe discovery-only state.
-- The local filter skips many acknowledgements, link-only messages, media-only messages, and short noise before making a Gemini request.
-- The context buffer is limited to CONTEXT_MESSAGES and only exists in process memory.
-- Per-group hourly request/reply limits and a reply cooldown are applied in memory. They reset if the worker restarts, so also review usage/quotas in Google AI Studio.
-- Only the selected message plus the recent in-memory conversation context for that approved group are included in the Gemini prompt.
-
-## Troubleshooting
-
-- No pairing code: check PAIRING_NUMBER, then inspect Railway logs after restarting the service.
-- Code does not work: codes expire; restart the service to request a fresh code. Do not repeatedly restart after a successful link.
-- Repeated pairing after every deploy: confirm the volume mount is /app/data and AUTH_DIR is /app/data/auth.
-- Group not listed: make sure the linked device is online and a new message arrives in the group after connection.
-- No AI decision: verify GEMINI_API_KEY and check for API quota/model errors in logs.
-- No message sent: confirm the group JID is in TARGET_GROUP_IDS and DRY_RUN is false.
-- Account logged out: the library is unofficial; inspect the logged-out status and re-link only if needed.
-
-## Local syntax check
-
-Use Node.js 20 or newer. Run npm install, then npm run check, then npm start.
-
-Do not upload the data/auth folder, pairing codes, or session credentials to GitHub or share them with anyone.
+GitHub Actions runs `npm test` and `npm run build` on the `remote-news` branch. Runtime API tests require a deployed Netlify URL and a valid Gemini API key; they cannot be proved by a static syntax check alone.
