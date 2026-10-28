@@ -6,8 +6,8 @@ A preview-first build of REMOTE. It discovers unusual US-oriented news candidate
 
 - Netlify static site with serverless endpoints for RSS news discovery, concurrent Openverse/Wikimedia Commons photo search, article text extraction, and same-origin photo loading for canvas export.
 - Gemini API key field, connection test, live model list, automatic budget-oriented Flash/Flash-Lite choice, and manual model selection.
-- Manual preview generation, browser-tab Auto timer (1–12 hours), step progress, event logs, source links, photo attribution/licence links, PNG download and caption copy.
-- Template text fit checks and one AI rewrite attempt if the headline/paragraph exceeds the target; fallback artwork is rendered if photo sources time out or return no images.
+- Manual preview generation, browser-tab Auto timer (1–12 hours), step progress, event logs, source details in the validation panel, PNG download and caption copy. Captions are written for readers and include eight relevant hashtags without a Sources block or links.
+- Template text fit checks with a larger proportional headline/body type scale and fixed inner margins; eight relevant hashtags are appended to captions. If photo sources time out or return no images, fallback artwork is rendered instead of failing the post.
 - No Facebook credentials or publishing code in this version.
 
 ## Run locally
@@ -42,7 +42,7 @@ The model selector fetches the models currently available to that key, filters t
 
 - News discovery currently uses localized Google News RSS search feeds; this is feed discovery, not proof of a claim.
 - Article text extraction is best-effort; paywalls, bot protection, publisher HTML changes and redirect restrictions may cause snippet-only retrieval.
-- Image search sends no licence, commercial-use, orientation, or minimum-size filters. It tries Openverse and Wikimedia Commons concurrently, then retries with a shorter topic query. Creator/source/licence metadata is displayed when the provider supplies it, but it does not control whether a photo is returned.
+- Image search uses a general category query derived from the story (for example, a dinosaur fossil story searches for a museum dinosaur fossil exhibition, not the exact auction/event). It sends no licence, commercial-use, orientation, or minimum-size filters. Creator/source/licence metadata is displayed when the provider supplies it, but it does not control whether a photo is returned.
 - Photo results are best-effort: if a source times out, returns no image, or a photo cannot load, the system still renders the post using built-in editorial fallback artwork.
 - Gemini outputs are drafts, not independent fact-checking. Read the source links; low-confidence or snippet-only results require extra care.
 
@@ -56,7 +56,7 @@ GitHub Actions runs `npm test` and `npm run build` on the `remote-news` branch. 
 
 ## Current photo search and Gemini model behaviour
 
-- Photo discovery searches Openverse and Wikimedia Commons concurrently using the topic and a shorter broad query. There is no landscape, minimum-size, commercial-use, or licence eligibility filter; portrait images can be cropped into the square card. Public HTTPS URL validation remains in place for safe image loading.
-- The image endpoint tries both providers in parallel and returns all supported photo candidates regardless of the licence metadata reported. It includes source/creator/license details when available. If both sources time out or return no images, the renderer still produces a complete square post with a designed fallback visual.
+- Photo discovery uses generic category/setting queries rather than trying to locate the exact rare event: fossil and skeleton stories search for museum exhibits, auctions for auction-house scenes, legal stories for courtrooms, and so on. Openverse and Wikimedia Commons are queried concurrently. There is no landscape, minimum-size, commercial-use, or licence eligibility filter; portrait images can be cropped into the square card. Public HTTPS URL validation remains in place for safe image loading.
+- The image endpoint tries both providers in parallel and returns all supported photo candidates regardless of the licence metadata reported. It includes source/creator/licence details when available. If both sources time out or return no images, the renderer still produces a complete square post with a designed fallback visual. The badge sits below the yellow panel with an intentional gap.
 - Gemini model discovery refreshes automatically when the site loads. The model list is cached in local storage, and the last model that successfully returns valid JSON is remembered. Each request tries that model first in Auto mode and falls back through other listed text-generation models if necessary. This cache does not bypass account quotas or restore a missing API key.
 - Use the remote-news branch as the Netlify production branch; the main branch is unchanged.
