@@ -29,10 +29,6 @@ function simplify(query) {
     .filter(word => word.length >= 3 && !STOP_WORDS.has(word));
   return [...new Set(words)].slice(0, 5).join(' ') || String(query).trim().split(/\s+/).slice(0, 3).join(' ');
 }
-function landscape() {
-  // The renderer crops to the square card, so portrait and unknown-dimension images are fine.
-  return true;
-}
 function licenseCode(value) {
   const license = String(value || '').trim().toLowerCase().replace(/_/g, '-');
   if (license === 'cc0' || /\bcc0\b/.test(license)) return 'cc0';
