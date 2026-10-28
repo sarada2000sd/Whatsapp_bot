@@ -59,7 +59,7 @@ The model selector fetches the models currently available to that key, filters t
 
 ## Automation boundaries
 
-The browser Auto timer generates a first preview immediately and repeats after the selected interval while the page stays open. Closing the tab/browser stops it. This is intentional in this build: secure unattended scheduling needs server-side credential storage and scheduled functions, which are not wired to the browser-only API key field yet. Facebook publishing is deferred completely. No post is sent to Facebook.
+Server-side Auto queues the first background run when enabled and then checks the saved interval through Netlify Scheduled Functions. Closing the page does not stop it. The latest post and the no-repeat history live in Netlify Blobs across redeploys. The site remains a remote control and preview; Facebook publishing is deferred completely and no post is sent to Facebook.
 
 ## Tests
 
