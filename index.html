@@ -286,7 +286,7 @@ async function render(photo,draft){
 function credit(p){
  $('imageCredit').replaceChildren();
  const s=document.createElement('span');
- if(!p){s.textContent='Photo unavailable from search sources · generated fallback artwork used.';$('imageCredit').append(s);return}
+ if(!p){s.textContent='Editorial artwork used for this post.';$('imageCredit').append(s);return}
  s.textContent='Photo: '+(p.title||'Untitled')+' · '+(p.creator||'Creator not listed')+' · '+(p.license||'Licence not reported');
  $('imageCredit').append(s);
  const href=p.foreign_landing_url||p.license_url||p.url;
