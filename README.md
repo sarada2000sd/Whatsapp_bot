@@ -1,13 +1,13 @@
 # REMOTE — News-to-preview automation
 
-A preview-first build of REMOTE. It discovers unusual US-oriented news candidates through Google News RSS searches, lets Gemini rank and rewrite source-backed material, searches Openverse for wide photographs under commercially usable licences, and renders a 1080×1080 PNG in the fixed REMOTE template.
+A preview-first build of REMOTE. It discovers unusual US-oriented news candidates through Google News RSS searches, lets Gemini rank and rewrite source-backed material, searches Openverse and Wikimedia Commons for matching photo candidates, and renders a 1080×1080 PNG in the fixed REMOTE template. Photo lookup is best-effort and cannot block a post from rendering.
 
 ## Features
 
-- Netlify static site with serverless endpoints for RSS news discovery, Openverse search, article text extraction, and same-origin photo loading for canvas export.
+- Netlify static site with serverless endpoints for RSS news discovery, concurrent Openverse/Wikimedia Commons photo search, article text extraction, and same-origin photo loading for canvas export.
 - Gemini API key field, connection test, live model list, automatic budget-oriented Flash/Flash-Lite choice, and manual model selection.
 - Manual preview generation, browser-tab Auto timer (1–12 hours), step progress, event logs, source links, photo attribution/licence links, PNG download and caption copy.
-- Template text fit checks and one AI rewrite attempt if the headline/paragraph exceeds the target.
+- Template text fit checks and one AI rewrite attempt if the headline/paragraph exceeds the target; fallback artwork is rendered if photo sources time out or return no images.
 - No Facebook credentials or publishing code in this version.
 
 ## Run locally
@@ -38,12 +38,12 @@ Paste a Gemini API key in the website Settings panel. The browser calls Google's
 
 The model selector fetches the models currently available to that key, filters to models supporting `generateContent`, and excludes image/audio/embedding/special-purpose models. AUTO prefers an available Flash-Lite identifier and then a stable Flash model. The Models API does not identify which models will be free on a user's account, and availability, quotas and billing can change. Confirm usage in Google AI Studio.
 
-## Sources and photo licensing
+## Sources and photo search
 
 - News discovery currently uses localized Google News RSS search feeds; this is feed discovery, not proof of a claim.
 - Article text extraction is best-effort; paywalls, bot protection, publisher HTML changes and redirect restrictions may cause snippet-only retrieval.
-- Image search calls Openverse with commercial-use, wide, large-photo filters and a second whitelist for `CC0`, public-domain, `CC BY`, and `CC BY`. CC BY-SA is excluded by default to avoid ShareAlike obligations in branded graphics. Always open the original landing/licence links before using a photo. Openverse metadata is not a legal guarantee.
-- The system refuses to render a photo if it cannot find an eligible result or proxy/render the image.
+- Image search sends no licence, commercial-use, orientation, or minimum-size filters. It tries Openverse and Wikimedia Commons concurrently, then retries with a shorter topic query. Creator/source/licence metadata is displayed when the provider supplies it, but it does not control whether a photo is returned.
+- Photo results are best-effort: if a source times out, returns no image, or a photo cannot load, the system still renders the post using built-in editorial fallback artwork.
 - Gemini outputs are drafts, not independent fact-checking. Read the source links; low-confidence or snippet-only results require extra care.
 
 ## Automation boundaries
@@ -56,7 +56,7 @@ GitHub Actions runs `npm test` and `npm run build` on the `remote-news` branch. 
 
 ## Current photo search and Gemini model behaviour
 
-- Photo discovery queries Openverse without restrictive size, aspect-ratio, category, or licence query parameters. Returned assets are locally checked for HTTPS URLs, landscape orientation when dimensions are known, and reusable CC0/Public Domain/CC BY/CC BY-SA licences.
-- If Openverse has a 5xx response or returns too few usable photos, the Netlify function searches Wikimedia Commons through its public API without an API key. Results include the file page, creator and licence information for attribution. The renderer crops landscape images to fit the square template.
+- Photo discovery searches Openverse and Wikimedia Commons concurrently using the topic and a shorter broad query. There is no landscape, minimum-size, commercial-use, or licence eligibility filter; portrait images can be cropped into the square card. Public HTTPS URL validation remains in place for safe image loading.
+- The image endpoint tries both providers in parallel and returns all supported photo candidates regardless of the licence metadata reported. It includes source/creator/license details when available. If both sources time out or return no images, the renderer still produces a complete square post with a designed fallback visual.
 - Gemini model discovery refreshes automatically when the site loads. The model list is cached in local storage, and the last model that successfully returns valid JSON is remembered. Each request tries that model first in Auto mode and falls back through other listed text-generation models if necessary. This cache does not bypass account quotas or restore a missing API key.
 - Use the remote-news branch as the Netlify production branch; the main branch is unchanged.
