@@ -114,7 +114,7 @@ async function readArticle(c){try{const r=await fetch('/api/article?url='+encode
 function genericPhotoQuery(title,hintedQuery){
  const text=(String(title||'')+' '+String(hintedQuery||'')).toLowerCase();
  const rules=[
-  [/museum|exhibit|gallery|artifact|fossil|dinosaur|prehistoric|paleontolog/,'museum dinosaur fossil skeleton exhibition'],
+  [/museum|exhibit|gallery|artifact|fossil|dinosaur|prehistoric|paleontolog|skeleton|nanotyrannus/,'museum dinosaur fossil skeleton exhibition'],
   [/auction|auctioneer|bidding|bid\b|sold for/,'auction house bidding room'],
   [/court|judge|lawsuit|trial|verdict/,'courthouse courtroom'],
   [/police|crime|arrest|investigation|sheriff/,'police vehicle city street'],
@@ -144,6 +144,7 @@ function cleanCaptionBody(raw){
  let caption=String(raw||'').trim();
  caption=caption.replace(/\[[^\]]+\]\(https?:\/\/[^)]+\)/gi,'');
  caption=caption.replace(/(?:^|\n)\s*(?:sources?|references?|source links?|read more|links?)\s*:[\s\S]*$/i,'');
+ caption=caption.replace(/\b(?:reporting from|according to|as reported by|reported by)\s+[^,.;!?]{1,100}?\b(?:confirms?|reported|says?|notes?|indicates?|suggests?|shows?)\s+/gi,'');
  caption=caption.replace(/https?:\/\/\S+/gi,'');
  caption=caption.replace(/^\s*(?:sources?|references?|source links?|read more|links?)\s*:.*$/gim,'');
  caption=caption.replace(/(^|\s)#[a-z0-9_]+/gi,' ');
@@ -194,11 +195,11 @@ async function writeDraft(chosen,articles){
  const prompt='Write one accurate, engaging English Facebook news post for US readers using ONLY the supplied evidence. Write for a human who wants to keep reading: start with a strong natural hook, explain what happened and why it matters, use 2-4 short readable paragraphs, and avoid robotic or exaggerated clickbait. Serious newsroom tone; humour only if inherent in the verified event. Never invent names, numbers, quotes, dates, motives or outcomes. Never add a Sources/References section, source URLs, hyperlinks, citations or phrases such as "according to reports from" just to cite sources. Do not repeat the selected headline word-for-word. For the graphic, write image_title (clear, catchy, max 56 characters) and image_paragraph (one paragraph, ideally 250-310 characters, hard max 340, concrete supported facts). Make the graphic paragraph substantial enough to fill the design without padding or repeating the title. The caption must be 110-160 words before hashtags, no links and no source list. Provide hashtags as a separate array of exactly 8 short relevant hashtag strings, including #News and seven topic-specific discoverability tags. Also provide image_query with 3-6 generic English keywords for a representative category photo, not an exact photo of this particular incident, sale, named individual, headline, or unique object. Choose a broad visual context a stock-photo search can actually find (for example museum dinosaur fossil skeleton exhibition for a fossil story, auction house bidding room for an auction, or a courthouse for a legal story). A generic photo is acceptable and must not be described as proof that it depicts the real event. Return JSON only with image_title, image_paragraph, caption, hashtags, image_query, claims (2-5 supported facts), verification_note (one sentence), confidence (high|medium|low). Evidence: '+JSON.stringify({selected:chosen.selected,related:chosen.supporting,articles:evidence});
  let d=await ai(prompt,3000);
  d.image_title=String(d.image_title||'An Unexpected Turn of Events').trim().replace(/\s+/g,' ');
- d.image_paragraph=String(d.image_paragraph||'').trim().replace(/\s+/g,' ');
+ d.image_paragraph=String(d.image_paragraph||'').trim().replace(/\b(?:reporting from|according to|as reported by|reported by)\s+[^,.;!?]{1,100}?\b(?:confirms?|reported|says?|notes?|indicates?|suggests?|shows?)\s+/gi,'').replace(/\s+/g,' ');
  if(d.image_title.length>56||d.image_paragraph.length>340||d.image_paragraph.length<160){
   const fixed=await ai('Improve this social news graphic copy for readability and balanced space. Do not change facts. The title should be max 56 characters. The paragraph should be 250-310 characters and never over 340. Return JSON only {"image_title":"...","image_paragraph":"..."}. Current copy: '+JSON.stringify({image_title:d.image_title,image_paragraph:d.image_paragraph}),800);
   d.image_title=String(fixed.image_title||d.image_title).trim().replace(/\s+/g,' ');
-  d.image_paragraph=String(fixed.image_paragraph||d.image_paragraph).trim().replace(/\s+/g,' ');
+  d.image_paragraph=String(fixed.image_paragraph||d.image_paragraph).trim().replace(/\b(?:reporting from|according to|as reported by|reported by)\s+[^,.;!?]{1,100}?\b(?:confirms?|reported|says?|notes?|indicates?|suggests?|shows?)\s+/gi,'').replace(/\s+/g,' ');
  }
  if(d.image_title.length>70||d.image_paragraph.length>340)throw Error('Graphic text still exceeds template limits after rewrite. No graphic was rendered.');
  d.image_query=genericPhotoQuery(chosen.selected&&chosen.selected.title,d.image_query);
