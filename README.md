@@ -53,3 +53,10 @@ The browser Auto timer generates a first preview immediately and repeats after t
 ## Tests
 
 GitHub Actions runs `npm test` and `npm run build` on the `remote-news` branch. Runtime API tests require a deployed Netlify URL and a valid Gemini API key; they cannot be proved by a static syntax check alone.
+
+## Current photo search and Gemini model behaviour
+
+- Photo discovery queries Openverse without restrictive size, aspect-ratio, category, or licence query parameters. Returned assets are locally checked for HTTPS URLs, landscape orientation when dimensions are known, and reusable CC0/Public Domain/CC BY/CC BY-SA licences.
+- If Openverse has a 5xx response or returns too few usable photos, the Netlify function searches Wikimedia Commons through its public API without an API key. Results include the file page, creator and licence information for attribution. The renderer crops landscape images to fit the square template.
+- Gemini model discovery refreshes automatically when the site loads. The model list is cached in local storage, and the last model that successfully returns valid JSON is remembered. Each request tries that model first in Auto mode and falls back through other listed text-generation models if necessary. This cache does not bypass account quotas or restore a missing API key.
+- Use the remote-news branch as the Netlify production branch; the main branch is unchanged.
