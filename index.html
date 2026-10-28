@@ -29,7 +29,13 @@ function notice(id,msg,type){const e=$(id);e.className='notice '+(type||'');e.te
 function save(){state.key=key();try{localStorage.removeItem('remote_gemini_key');sessionStorage.removeItem('remote_gemini_key_session');if($('rememberKey').checked)localStorage.setItem('remote_gemini_key',state.key);else if(state.key)sessionStorage.setItem('remote_gemini_key_session',state.key);state.pageName=$('pageName').value.trim().slice(0,28)||'REMOTE NEWS';localStorage.setItem('remote_settings',JSON.stringify({modelMode:state.modelMode,model:state.model,pageName:state.pageName,postMode:state.postMode,interval:$('interval').value}))}catch(e){}$('statMode').textContent=state.postMode.toUpperCase();$('statModeSub').textContent=state.postMode==='auto'?'Every '+$('interval').value+' hour(s)':'One preview per run'}
 function cleanModelName(name){return String(name||'').replace(/^models\//,'')}
 function readLastModel(){try{return state.lastWorkingModel||localStorage.getItem(LAST_MODEL_KEY)||''}catch(e){return state.lastWorkingModel||''}}
-function isText(m){return(m.supportedGenerationMethods||[]).includes('generateContent')&&/^gemini-/i.test(m.name||'')&&!/(image|tts|audio|live|embedding|robot|deep-research|computer-use|veo|nano-banana)/i.test(m.name||'')}
+function isText(m){
+ const id=cleanModelName(m.name).toLowerCase();
+ const methods=Array.isArray(m.supportedGenerationMethods)?m.supportedGenerationMethods.map(method=>String(method).toLowerCase()):[];
+ const knownTextFamily=/^(?:gemini|gemma)-/.test(id);
+ const supportsGenerate=methods.length?methods.includes('generatecontent'):knownTextFamily;
+ return knownTextFamily&&supportsGenerate&&!/(?:^|[-/])(image|tts|audio|live|embedding|robot|deep-research|computer-use|veo|nano-banana|transcribe|translate)(?:[-./]|$)/i.test(id);
+}
 function stableModel(m){return !/(preview|experimental|exp-|latest)/i.test(cleanModelName(m.name))}
 function scoreModel(m){const name=cleanModelName(m.name).toLowerCase();let score=stableModel(m)?1000:0;if(/flash-lite/.test(name))score+=250;else if(/flash/.test(name))score+=180;else score+=40;const version=name.match(/^gemini-(\d+)(?:\.(\d+))?/);if(version)score+=Number(version[1])*10+Number(version[2]||0);return score}
 function orderedModels(){
@@ -63,7 +69,7 @@ async function refreshModels(){
    if(!r.ok)throw Error((d.error&&d.error.message)||('Google returned HTTP '+r.status));
    incoming=incoming.concat(d.models||[]);pageToken=d.nextPageToken||'';pages++;
   }while(pageToken&&pages<3);
-  const available=incoming.filter(isText);if(!available.length)throw Error('Google returned no text-generation models for this key.');
+  const available=incoming.filter(isText);if(!available.length){const samples=incoming.slice(0,8).map(m=>cleanModelName(m.name)+' ['+(Array.isArray(m.supportedGenerationMethods)?m.supportedGenerationMethods.join(','):'methods not reported')+']').join('; ');throw Error('Google returned '+incoming.length+' model(s), but none passed text-model compatibility checks. Models seen: '+(samples||'none returned'));}
   state.models=available;cacheModels();const remembered=readLastModel();
   if(remembered&&!available.some(m=>cleanModelName(m.name)===remembered))log('Saved model '+remembered+' is no longer listed; trying available fallbacks.','');
   if(!available.some(m=>cleanModelName(m.name)===cleanModelName(state.model)))state.model=cleanModelName((available.find(m=>cleanModelName(m.name)===remembered)||available.slice().sort((a,b)=>scoreModel(b)-scoreModel(a))[0]||{}).name||'');
