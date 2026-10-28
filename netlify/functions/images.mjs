@@ -73,7 +73,7 @@ function commonsItem(page) {
   if (mime && !['image/jpeg','image/png','image/webp','image/avif'].includes(mime)) return null;
   const licence = commonsLicense(info);
   if (!licence) return null;
-  const pageUrl = 'https://commons.wikimedia.org/wiki/' + encodeURIComponent(String(page.title || '').replace(/ /g, '_'));
+  const pageUrl = 'https://commons.wikimedia.org/wiki/' + encodeURIComponent(String(page.title || '').replace(/ /g, '_')).replace(/%3A/gi, ':');
   const fileUrl = safeHttps(info.thumburl) || safeHttps(info.url);
   if (!fileUrl) return null;
   return {
