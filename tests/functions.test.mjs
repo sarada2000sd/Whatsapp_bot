@@ -59,7 +59,7 @@ test('Openverse HTTP 502 falls back to unrestricted Wikimedia Commons photo resu
     assert.ok(data.results.every(item=>item.provider==='Wikimedia Commons'));
     assert.ok(data.results.some(item=>item.title==='Portrait.jpg'));
     assert.ok(data.results.some(item=>item.license==='CC BY-NC 4.0'));
-    assert.match(data.results[0].foreign_landing_url,/commons\\.wikimedia\\.org\\/wiki\\/File/);
+    assert.ok(data.results[0].foreign_landing_url.includes('commons.wikimedia.org/wiki/File:'));
   } finally { globalThis.fetch=originalFetch; }
 });
 
