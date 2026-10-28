@@ -30,6 +30,24 @@
   status = 200
   force = true
 
+[[redirects]]
+  from = "/api/automation"
+  to = "/.netlify/functions/automation-settings"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/api/automation-image"
+  to = "/.netlify/functions/automation-latest-image"
+  status = 200
+  force = true
+
+[functions."automation-tick"]
+  schedule = "0 * * * *"
+
+[functions."automation-run-background"]
+  background = true
+
 [[headers]]
   for = "/*"
   [headers.values]
