@@ -25,8 +25,8 @@ test('Gemini model compatibility accepts models/ prefixed 3.8 and 3.5 IDs and re
 
 test('Photo outages do not stop the news post renderer',()=>{
  const html=readFileSync('index.html','utf8');
- assert.match(html,/Photo search is best-effort/);
- assert.match(html,/render\\(null,draft\\)/);
+ assert.ok(html.includes('photo search is best-effort'));
+ assert.ok(html.includes('render(null,draft)'));
  assert.ok(html.includes('Fallback artwork'));
  assert.doesNotMatch(html,/No landscape image was found from Openverse/);
 });
