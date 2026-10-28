@@ -3,10 +3,14 @@
   "version": "1.0.0",
   "private": true,
   "type": "module",
-  "description": "REMOTE news discovery, licensed-photo search and square post preview app.",
+  "description": "REMOTE news discovery, persistent no-repeat history, server-side scheduled automation, and square post previews.",
   "scripts": {
     "build": "node scripts/build-check.mjs",
     "test": "node --test tests/*.test.mjs",
     "dev": "npx netlify-cli dev"
+  },
+  "dependencies": {
+    "@netlify/blobs": "11.1.7",
+    "@resvg/resvg-js": "2.6.2"
   }
 }
