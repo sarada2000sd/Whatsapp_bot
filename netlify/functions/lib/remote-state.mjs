@@ -41,7 +41,7 @@ export async function readHistory(store = getRemoteStore()) {
 }
 
 export async function writeHistory(history, store = getRemoteStore()) {
-  const safe = Array.isArray(history) ? history.slice(-1200) : [];
+  const safe = Array.isArray(history) ? history : [];
   await store.setJSON(HISTORY_KEY, safe);
   return safe;
 }
