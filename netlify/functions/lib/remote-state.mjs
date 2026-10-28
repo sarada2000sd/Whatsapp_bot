@@ -90,7 +90,7 @@ function similarity(left, right) {
   if (a.size < 3 || b.size < 3) return 0;
   let shared = 0;
   for (const word of a) if (b.has(word)) shared++;
-  return shared / (a.size + b.size - shared);
+  return shared / Math.min(a.size, b.size);
 }
 
 export function isStoryUsed(story, history) {
@@ -104,7 +104,7 @@ export function isStoryUsed(story, history) {
     const oldTitle = item.titleKey || normalizeStoryTitle(item.title);
     if (url && oldUrl && url === oldUrl) return true;
     if (titleKey && oldTitle && titleKey === oldTitle) return true;
-    return similarity(titleKey, oldTitle) >= 0.72;
+    return similarity(titleKey, oldTitle) >= 0.75;
   });
 }
 
