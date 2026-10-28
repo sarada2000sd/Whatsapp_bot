@@ -1,3 +1,4 @@
+import { readHistory, isStoryUsed } from "./lib/remote-state.mjs";
 const QUERIES = [
   'site:upi.com/Odd_News OR site:upi.com/Top_News weird unusual when:14d',
   '"odd news" OR "weird news" United States when:14d',
@@ -6,6 +7,31 @@ const QUERIES = [
   'strange animals unusual discoveries US news when:14d',
   'site:apnews.com/hub/oddities OR site:apnews.com oddities when:14d',
   'funny unusual real life human interest America when:14d'
+];
+const BROAD_QUERIES = [
+  '"oddities" OR "odd news" OR "weird news" United States when:30d',
+  'unusual human interest people America news when:30d',
+  'strange discovery museum auction United States news when:30d',
+  'bizarre real event people USA local news when:30d',
+  'unusual animals discovery United States news when:30d',
+  'unexpected public event USA news when:30d',
+  'site:upi.com/Odd_News unusual OR bizarre when:30d',
+  'site:apnews.com/hub/oddities OR site:apnews.com/article oddities when:30d'
+];
+const OLDER_QUERIES = [
+  '"odd news" OR "weird news" United States when:90d',
+  'unusual human interest news America when:90d',
+  'strange animal discovery United States when:90d',
+  'bizarre museum auction discovery when:90d',
+  'unexpected event people USA news when:90d',
+  'site:upi.com/Odd_News OR site:apnews.com/hub/oddities when:90d'
+];
+const WIDE_QUERIES = [
+  'unusual people stories United States news',
+  'unexpected discoveries and strange events United States',
+  'oddities human interest news America',
+  'bizarre true stories from local US news',
+  'unusual animals public events America'
 ];
 const headers = {
   'Access-Control-Allow-Origin': '*',
@@ -53,7 +79,12 @@ async function fetchFeed(query) {
 export default async (request) => {
   if (request.method === 'OPTIONS') return new Response(null, { status: 204, headers });
   if (request.method !== 'GET') return response(405, { error: 'Method not allowed.' });
-  const results = await Promise.all(QUERIES.map(async query => {
+  const incomingUrl = new URL(request.url);
+  const queryList = [...QUERIES];
+  if (incomingUrl.searchParams.get("broad") === "1") queryList.push(...BROAD_QUERIES);
+  if (incomingUrl.searchParams.get("older") === "1") queryList.push(...OLDER_QUERIES);
+  if (incomingUrl.searchParams.get("wide") === "1") queryList.push(...WIDE_QUERIES);
+  const results = await Promise.all(queryList.map(async query => {
     try { return { query, ok: true, ...(await fetchFeed(query)) }; }
     catch (e) { return { query, ok: false, count: 0, candidates: [], error: String(e.message || e) }; }
   }));
@@ -70,6 +101,25 @@ export default async (request) => {
     unique.push(item);
   }
   unique.sort((a,b)=>(Date.parse(b.publishedAt)||0)-(Date.parse(a.publishedAt)||0));
-  const limit = Math.min(60,Math.max(5,Number(new URL(request.url).searchParams.get('limit'))||60));
-  return response(200,{candidates:unique.slice(0,limit),count:Math.min(unique.length,limit),totalUnique:unique.length,queries:results.map(item=>({query:item.query,ok:item.ok,count:item.count,error:item.error||null})),warnings:results.some(item=>!item.ok)?['Some RSS searches failed; results may be incomplete.']:[],fetchedAt:new Date().toISOString()});
+  const totalBeforeHistory = unique.length;
+  let excludedPreviouslyUsed = 0;
+  if (process.env.NETLIFY) {
+    try {
+      const history = await readHistory();
+      const fresh = unique.filter(item => !isStoryUsed(item, history));
+      excludedPreviouslyUsed = unique.length - fresh.length;
+      unique.splice(0, unique.length, ...fresh);
+    } catch (error) {
+      console.error("Remote history check failed; returning feed candidates:", String(error.message || error));
+    }
+  }
+  const limit = Math.min(200,Math.max(5,Number(incomingUrl.searchParams.get('limit'))||60));
+  const warnings = [];
+  if (results.some(item => !item.ok)) warnings.push("Some RSS searches failed; broadened searches can find more stories.");
+  return response(200,{
+    candidates:unique.slice(0,limit),count:Math.min(unique.length,limit),totalUnique:totalBeforeHistory,
+    excludedPreviouslyUsed,
+    queries:results.map(item=>({query:item.query,ok:item.ok,count:item.count,error:item.error||null})),
+    warnings,fetchedAt:new Date().toISOString()
+  });
 };
