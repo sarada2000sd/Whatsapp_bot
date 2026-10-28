@@ -16,6 +16,7 @@ test('news endpoint parses RSS and normalizes candidate titles', async () => {
 test('Photo search accepts portrait images and any reported licence without restrictive API filters', async () => {
   globalThis.fetch = async url => {
     const parsed = new URL(String(url));
+    if (parsed.hostname === 'commons.wikimedia.org') return new Response(JSON.stringify({query:{pages:[]}}),{status:200,headers:{'Content-Type':'application/json'}});
     assert.equal(parsed.hostname, 'api.openverse.org');
     for (const name of ['size','aspect_ratio','category','license','license_type']) assert.equal(parsed.searchParams.has(name), false);
     return new Response(JSON.stringify({ results: [
