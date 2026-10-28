@@ -22,3 +22,11 @@ test('Gemini model compatibility accepts models/ prefixed 3.8 and 3.5 IDs and re
  assert.equal(isText({name:'models/gemini-3.1-flash-image',supportedGenerationMethods:['generateContent']}),false);
  assert.equal(isText({name:'models/gemini-3.8-flash',supportedGenerationMethods:['countTokens']}),false);
 });
+
+test('Photo outages do not stop the news post renderer',()=>{
+ const html=readFileSync('index.html','utf8');
+ assert.match(html,/Photo search is best-effort/);
+ assert.match(html,/render\\(null,draft\\)/);
+ assert.match(html,/Fallback artwork/);
+ assert.doesNotMatch(html,/No landscape image was found from Openverse/);
+});
