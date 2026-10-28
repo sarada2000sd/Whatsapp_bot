@@ -9,8 +9,8 @@ test('Square renderer has title and paragraph fields',()=>{const html=readFileSy
 
 test('Gemini model compatibility accepts models/ prefixed 3.8 and 3.5 IDs and rejects non-text endpoints',()=>{
  const html=readFileSync('index.html','utf8');
- const cleanMatch=html.match(/function cleanModelName\\(name\\)\\s*\\{[^}]*\\}/);
- const textMatch=html.match(/function isText\\(m\\)\\s*\\{[^}]*\\}/);
+ const cleanMatch=html.match(/function cleanModelName\(name\)\s*\{[^}]*\}/);
+ const textMatch=html.match(/function isText\(m\)\s*\{[^}]*\}/);
  assert.ok(cleanMatch,'cleanModelName helper should exist');
  assert.ok(textMatch,'isText compatibility filter should exist');
  const cleanModelName=new Function('return ('+cleanMatch[0]+');')();
