@@ -105,6 +105,24 @@ async function commonsSearch(query, pageSize) {
   const pages = Array.isArray(data.query && data.query.pages) ? data.query.pages : Object.values((data.query && data.query.pages) || {});
   return { results: pages.map(commonsItem).filter(Boolean), returned: pages.length };
 }
+function relatedPhotoQueries(query) {
+  const text = String(query || "").toLowerCase();
+  if (/museum|exhibit|gallery|artifact|fossil|dinosaur|prehistoric|paleontolog|skeleton/.test(text))
+    return ["natural history museum exhibit", "dinosaur skeleton museum display", "museum gallery exhibition hall", "dinosaur fossil display", "museum interior exhibition", "science museum dinosaur exhibit"];
+  if (/auction|auctioneer|bidding|bid\\b|sold for/.test(text))
+    return ["auction house interior", "auction gallery crowd", "auction display tables", "auctioneer bidding room", "public auction interior"];
+  if (/court|judge|lawsuit|trial|verdict/.test(text))
+    return ["courthouse interior", "judge courtroom", "court building exterior", "law court hearing room"];
+  if (/animal|wildlife|zoo|dog|cat|bird|whale/.test(text))
+    return ["wildlife animals natural habitat", "zoo animal exhibit", "wildlife rescue centre", "animal close up outdoors"];
+  if (/airport|airplane|flight|airline/.test(text))
+    return ["airport terminal passengers", "aircraft on runway", "airport passenger airplane", "airline check in hall"];
+  if (/police|crime|arrest/.test(text))
+    return ["police station exterior", "police vehicle on city street", "law enforcement press conference"];
+  if (/flood|tornado|hurricane|storm|weather/.test(text))
+    return ["storm clouds over city", "flooded street after rain", "weather response crew"];
+  return ["public building exterior", "people at a public event", "museum exhibition hall", "city street everyday life", "community event crowd", "public interior hall"];
+}
 export default async (request) => {
   if (request.method === 'OPTIONS') return new Response(null, { status: 204, headers });
   if (request.method !== 'GET') return response(405, { error: 'Method not allowed.' });
@@ -112,7 +130,7 @@ export default async (request) => {
   if (!query) return response(400, { error: 'A photo search query is required.' });
   const pageSize = Math.min(20, Math.max(5, Number(incoming.searchParams.get('limit')) || 18));
   const words = [...new Set(query.toLowerCase().replace(/[^a-z0-9 -]/g, ' ').split(' ').filter(word => word.length > 2 && !STOP_WORDS.has(word)))];
-  const terms = [...new Set([query, words.slice(0, 3).join(' ')].filter(Boolean))];
+  const terms = [...new Set([query, simplify(query), words.slice(0, 3).join(' '), ...relatedPhotoQueries(query)].filter(Boolean))].slice(0, 5);
   const results = new Map(), attempts = [];
   const providers = { Openverse: 0, 'Wikimedia Commons': 0 };
 
