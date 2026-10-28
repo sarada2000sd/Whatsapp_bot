@@ -112,7 +112,7 @@ export default async (request) => {
   if (!query) return response(400, { error: 'A photo search query is required.' });
   const pageSize = Math.min(20, Math.max(5, Number(incoming.searchParams.get('limit')) || 18));
   const words = [...new Set(query.toLowerCase().replace(/[^a-z0-9\\s-]/g, ' ').split(/\\s+/).filter(word => word.length > 2 && !STOP_WORDS.has(word)))];
-  const terms = [...new Set([query, words.slice(0, 5).join(' '), words.slice(0, 3).join(' ')].filter(Boolean))];
+  const terms = [...new Set([query, words.slice(0, 3).join(' ')].filter(Boolean))];
   const results = new Map(), attempts = [];
   const providers = { Openverse: 0, 'Wikimedia Commons': 0 };
 
