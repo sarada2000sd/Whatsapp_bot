@@ -30,3 +30,38 @@ test('Photo outages do not stop the news post renderer',()=>{
  assert.ok(html.includes('Fallback artwork'));
  assert.doesNotMatch(html,/No landscape image was found from Openverse/);
 });
+
+test('Generic photo search queries represent the subject rather than the exact news event',()=>{
+ const html=readFileSync('index.html','utf8');
+ const match=html.match(/function genericPhotoQuery\(title,hintedQuery\)\s*\{[\s\S]*?\n\}/);
+ assert.ok(match,'genericPhotoQuery helper should exist');
+ const genericPhotoQuery=new Function('return ('+match[0]+');')();
+ assert.equal(genericPhotoQuery('Rare Nanotyrannus Skeleton Sells For $47.3M','nanotyrannus auction'),'museum dinosaur fossil skeleton exhibition');
+ assert.equal(genericPhotoQuery('Judge dismisses a lawsuit','legal dispute'),'courthouse courtroom');
+ assert.ok(html.includes('not an exact photo of this particular incident'));
+});
+test('Graphic typography uses a larger proportional title and keeps the badge away from the yellow panel',()=>{
+ const html=readFileSync('index.html','utf8');
+ assert.ok(html.includes('titleSize=Math.round(bodySize*1.45)'));
+ assert.ok(html.includes('const panel={x:166,y:200,w:748,h:642}'));
+ assert.ok(html.includes('rounded(ctx,403,866,274,55,28'));
+ assert.ok(html.includes('ctx.fillText(line,textX,y,textW)'));
+});
+test('Caption removes source links and appends exactly eight relevant hashtags',()=>{
+ const html=readFileSync('index.html','utf8');
+ const cleanMatch=html.match(/function cleanCaptionBody\(raw\)\s*\{[\s\S]*?\n\}/);
+ const tagsMatch=html.match(/function hashtagsForPost\(suggested,title,imageQuery\)\s*\{[\s\S]*?\n\}/);
+ assert.ok(cleanMatch,'cleanCaptionBody helper should exist');
+ assert.ok(tagsMatch,'hashtagsForPost helper should exist');
+ const cleanCaptionBody=new Function('return ('+cleanMatch[0]+');')();
+ const hashtagsForPost=new Function('return ('+tagsMatch[0]+');')();
+ const clean=cleanCaptionBody('A remarkable fossil sold for millions.\n\nSources: https://example.com/report');
+ assert.ok(!/https?:\/\//i.test(clean));
+ assert.ok(!/sources?:/i.test(clean));
+ const tags=hashtagsForPost(['#Auction','#News','#Dinosaur'],'Nanotyrannus fossil auction','museum dinosaur fossil skeleton exhibition');
+ assert.equal(tags.length,8);
+ assert.equal(tags[0],'#News');
+ assert.equal(new Set(tags.map(tag=>tag.toLowerCase())).size,8);
+ assert.ok(tags.includes('#Auction'));
+ assert.ok(tags.includes('#Fossil'));
+});
