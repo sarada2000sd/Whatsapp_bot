@@ -13,28 +13,32 @@ test('news endpoint parses RSS and normalizes candidate titles', async () => {
   finally { globalThis.fetch = originalFetch; }
 });
 
-test('Openverse has no narrow filters and accepts CC BY, CC BY-SA, CC0, and unknown-dimension landscape candidates', async () => {
+test('Photo search accepts portrait images and any reported licence without restrictive API filters', async () => {
   globalThis.fetch = async url => {
     const parsed = new URL(String(url));
     assert.equal(parsed.hostname, 'api.openverse.org');
-    assert.equal(parsed.searchParams.has('size'), false);
-    assert.equal(parsed.searchParams.has('aspect_ratio'), false);
-    assert.equal(parsed.searchParams.has('category'), false);
-    assert.equal(parsed.searchParams.has('license'), false);
-    assert.equal(parsed.searchParams.has('license_type'), false);
+    for (const name of ['size','aspect_ratio','category','license','license_type']) assert.equal(parsed.searchParams.has(name), false);
     return new Response(JSON.stringify({ results: [
       { id:'by', title:'Wide CC BY', url:'https://images.example/by.jpg', thumbnail:'https://images.example/by-thumb.jpg', foreign_landing_url:'https://example.com/by', license:'by', license_url:'https://creativecommons.org/licenses/by/4.0/', width:2400, height:1000 },
-      { id:'sa', title:'Wide CC BY-SA', url:'https://images.example/sa.jpg', thumbnail:'https://images.example/sa-thumb.jpg', foreign_landing_url:'https://example.com/sa', license:'by-sa', license_url:'https://creativecommons.org/licenses/by-sa/4.0/', width:1900, height:1200 },
-      { id:'portrait', title:'Portrait rejected', url:'https://images.example/port.jpg', foreign_landing_url:'https://example.com/port', license:'by', license_url:'https://creativecommons.org/licenses/by/4.0/', width:800, height:1400 },
-      { id:'nc', title:'NC rejected', url:'https://images.example/nc.jpg', foreign_landing_url:'https://example.com/nc', license:'by-nc', license_url:'https://creativecommons.org/licenses/by-nc/4.0/', width:1400, height:900 },
-      { id:'unknown', title:'Unknown dimensions accepted', url:'https://images.example/unknown.jpg', foreign_landing_url:'https://example.com/unknown', license:'cc0', license_url:'https://creativecommons.org/publicdomain/zero/1.0/' }
+      { id:'sa', title:'Wide CC BY-SA', url:'https://images.example/sa.jpg', foreign_landing_url:'https://example.com/sa', license:'by-sa', license_url:'https://creativecommons.org/licenses/by-sa/4.0/', width:1900, height:1200 },
+      { id:'portrait', title:'Portrait accepted', url:'https://images.example/port.jpg', foreign_landing_url:'https://example.com/port', license:'by', width:800, height:1400 },
+      { id:'nc', title:'NC accepted', url:'https://images.example/nc.jpg', foreign_landing_url:'https://example.com/nc', license:'by-nc', license_url:'https://creativecommons.org/licenses/by-nc/4.0/', width:1400, height:900 },
+      { id:'unknown', title:'Unknown licence/dimensions accepted', url:'https://images.example/unknown.jpg', width:0, height:0 }
     ] }), { status:200, headers:{'Content-Type':'application/json'} });
   };
-  try { const response=await images(new Request('https://local.test/api/images?q=workplace&limit=8')); const data=await response.json(); assert.equal(response.status,200); assert.equal(data.count,3); assert.ok(data.results.some(item=>item.license==='by-sa')); assert.equal(data.results.some(item=>item.title==='Portrait rejected'),false); assert.equal(data.results.some(item=>item.license==='by-nc'),false); }
-  finally { globalThis.fetch=originalFetch; }
+  try {
+    const response=await images(new Request('https://local.test/api/images?q=workplace&limit=8'));
+    const data=await response.json();
+    assert.equal(response.status,200);
+    assert.equal(data.count,5);
+    assert.ok(data.results.some(item=>item.license==='by-sa'));
+    assert.ok(data.results.some(item=>item.title==='Portrait accepted'));
+    assert.ok(data.results.some(item=>item.license==='by-nc'));
+    assert.ok(data.results.some(item=>item.title==='Unknown licence/dimensions accepted'));
+  } finally { globalThis.fetch=originalFetch; }
 });
 
-test('Openverse HTTP 502 falls back to landscape CC-licensed Wikimedia Commons photos', async () => {
+test('Openverse HTTP 502 falls back to unrestricted Wikimedia Commons photo results', async () => {
   globalThis.fetch=async url=>{
     const parsed=new URL(String(url));
     if(parsed.hostname==='api.openverse.org')return new Response(JSON.stringify({detail:'upstream unavailable'}),{status:502,headers:{'Content-Type':'application/json'}});
@@ -45,13 +49,22 @@ test('Openverse HTTP 502 falls back to landscape CC-licensed Wikimedia Commons p
       {pageid:3,title:'File:NC.jpg',imageinfo:[{url:'https://upload.wikimedia.org/wikipedia/commons/nc.jpg',thumburl:'https://upload.wikimedia.org/wikipedia/commons/thumb/nc.jpg/1600px-nc.jpg',width:2000,height:1000,thumbwidth:1600,thumbheight:800,mime:'image/jpeg',extmetadata:{LicenseShortName:{value:'CC BY-NC 4.0'},LicenseUrl:{value:'https://creativecommons.org/licenses/by-nc/4.0/'}}}]}
     ]}}),{status:200,headers:{'Content-Type':'application/json'}});
   };
-  try { const response=await images(new Request('https://local.test/api/images?q=funny%20dog&limit=8')); const data=await response.json(); assert.equal(response.status,200); assert.equal(data.count,1); assert.equal(data.fallbackUsed,true); assert.equal(data.results[0].provider,'Wikimedia Commons'); assert.equal(data.results[0].license,'by-sa'); assert.match(data.results[0].foreign_landing_url,/commons\.wikimedia\.org\/wiki\/File/); }
-  finally { globalThis.fetch=originalFetch; }
+  try {
+    const response=await images(new Request('https://local.test/api/images?q=funny%20dog&limit=8'));
+    const data=await response.json();
+    assert.equal(response.status,200);
+    assert.equal(data.count,3);
+    assert.equal(data.fallbackUsed,true);
+    assert.ok(data.results.every(item=>item.provider==='Wikimedia Commons'));
+    assert.ok(data.results.some(item=>item.title==='Portrait.jpg'));
+    assert.ok(data.results.some(item=>item.license==='CC BY-NC 4.0'));
+    assert.match(data.results[0].foreign_landing_url,/commons\\.wikimedia\\.org\\/wiki\\/File/);
+  } finally { globalThis.fetch=originalFetch; }
 });
 
 test('Both image providers can fail without crashing and diagnostics are retained', async () => {
   globalThis.fetch=async url=>new Response(JSON.stringify({error:'simulated failure'}),{status:new URL(String(url)).hostname==='api.openverse.org'?502:503,headers:{'Content-Type':'application/json'}});
-  try { const response=await images(new Request('https://local.test/api/images?q=rare-topic&limit=8')); const data=await response.json(); assert.equal(response.status,200); assert.equal(data.count,0); assert.ok(data.attempts.some(a=>a.provider==='Openverse'&&a.status==='error')); assert.ok(data.attempts.some(a=>a.provider==='Wikimedia Commons'&&a.status==='error')); assert.ok(data.warnings[0].includes('No landscape photos')); }
+  try { const response=await images(new Request('https://local.test/api/images?q=rare-topic&limit=8')); const data=await response.json(); assert.equal(response.status,200); assert.equal(data.count,0); assert.ok(data.attempts.some(a=>a.provider==='Openverse'&&a.status==='error')); assert.ok(data.attempts.some(a=>a.provider==='Wikimedia Commons'&&a.status==='error')); assert.ok(data.warnings[0].includes('Neither image provider returned an image')); }
   finally { globalThis.fetch=originalFetch; }
 });
 
