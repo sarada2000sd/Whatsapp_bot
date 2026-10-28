@@ -23,11 +23,13 @@ test('Gemini model compatibility accepts models/ prefixed 3.8 and 3.5 IDs and re
  assert.equal(isText({name:'models/gemini-3.8-flash',supportedGenerationMethods:['countTokens']}),false);
 });
 
-test('Photo outages do not stop the news post renderer',()=>{
+test('Photo search tries several categories and always has a clean artwork fallback',()=>{
  const html=readFileSync('index.html','utf8');
- assert.ok(html.includes('photo search is best-effort'));
+ assert.ok(html.includes('function photoQueries(title,hint)'));
+ assert.ok(html.includes('for(let i=0;i<photos.length;i+=4)'));
  assert.ok(html.includes('render(null,draft)'));
- assert.ok(html.includes('Fallback artwork'));
+ assert.ok(html.includes('STORIES FROM THE UNEXPECTED'));
+ assert.doesNotMatch(html,/Photo unavailable/);
  assert.doesNotMatch(html,/No landscape image was found from Openverse/);
 });
 
@@ -64,4 +66,35 @@ test('Caption removes source links and appends exactly eight relevant hashtags',
  assert.equal(new Set(tags.map(tag=>tag.toLowerCase())).size,8);
  assert.ok(tags.includes('#Auction'));
  assert.ok(tags.includes('#Fossil'));
+});
+
+test('Remote Auto runs as a server background function with a schedule and persisted story history',()=>{
+ const files=['netlify/functions/automation-settings.mjs','netlify/functions/automation-tick.mjs','netlify/functions/automation-run-background.mjs','netlify/functions/automation-latest-image.mjs','netlify/functions/lib/remote-state.mjs'];
+ for(const file of files)assert.ok(existsSync(file),file+' must exist');
+ const toml=readFileSync('netlify.toml','utf8'),worker=readFileSync('netlify/functions/automation-run-background.mjs','utf8'),state=readFileSync('netlify/functions/lib/remote-state.mjs','utf8'),html=readFileSync('index.html','utf8');
+ assert.ok(toml.includes('schedule = "0 * * * *"'));
+ assert.ok(toml.includes('background = true'));
+ assert.ok(worker.includes('export const config = { background: true }'));
+ assert.ok(worker.includes('await writeHistory(rememberStory(history,story),store)'));
+ assert.ok(state.includes('export function isStoryUsed'));
+ assert.ok(state.includes('export async function readHistory'));
+ assert.ok(html.includes('REMOTE_CONTROL_TOKEN'));
+ assert.ok(html.includes('/api/automation?action=status'));
+ assert.ok(html.includes('/api/automation-image?version='));
+ assert.ok(!html.includes('setTimeout(()=>{if(state.auto)generate'));
+});
+test('Server history canonicalizes tracking URLs and rejects repeat stories',()=>{
+ const source=readFileSync('netlify/functions/lib/remote-state.mjs','utf8');
+ assert.ok(source.includes('export function canonicalStoryUrl'));
+ assert.ok(source.includes('export function normalizeStoryTitle'));
+ assert.ok(source.includes('export function isStoryUsed'));
+ assert.ok(source.includes('export function rememberStory'));
+});
+test('News selection can broaden into older and wider searches instead of relying on one feed pass',()=>{
+ const news=readFileSync('netlify/functions/news.mjs','utf8');
+ assert.ok(news.includes('BROAD_QUERIES'));
+ assert.ok(news.includes('OLDER_QUERIES'));
+ assert.ok(news.includes('WIDE_QUERIES'));
+ assert.ok(news.includes('isStoryUsed(item, history)'));
+ assert.ok(news.includes('limit = Math.min(200'));
 });
